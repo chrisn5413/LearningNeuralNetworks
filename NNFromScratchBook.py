@@ -8,7 +8,9 @@ import nnfs
 from nnfs.datasets import spiral_data
 # import matplotlib.pyplot as plt
 
+
 nnfs.init()
+
 
 class Layer_Dense:
     # Layer initialization
@@ -22,12 +24,14 @@ class Layer_Dense:
         # Calculate output values from inputs, weights, and biases
         self.output = np.dot(inputs, self.weights) + self.biases
 
+
 # RELU activation, forces node outputs to be 0 or positive only
 class Activation_ReLU:
     # Forward pass
     def forward(self, inputs):
         # Calculate output values from input
         self.output = np.maximum(0, inputs)
+
 
 # Softmax activation, gives meaning to individual values/features within each sample/feature set
 #   by making each value a probability with respect to the sum of all values (between 0 and 1).
@@ -44,10 +48,12 @@ class Activation_Softmax:
 
         self.output = probabilities
 
+
 # Create dataset
 X, y = spiral_data(100, 3)
-# plt.scatter(X[:, 0], X[:, 1])
-# plt.show()
+'''plt.scatter(X[:, 0], X[:, 1])
+plt.show()'''
+
 
 # contains multiple stages of making a neural network from complex to simple
 # Just choose one to run
@@ -89,6 +95,7 @@ def two_dense_two_active_loss():
     # Output
     print(activation2.output[:5])
 
+
 # Two layer dense
 # Rectified Linear Units (ReLU) activation for Dense1
 # Softmax activation for Dense2
@@ -118,6 +125,7 @@ def two_dense_two_active():
     # Output
     print(activation2.output[:5])
 
+
 # One layer dense
 # Rectified Linear Units as activation for Dense1
 def one_dense_one_active():
@@ -136,6 +144,7 @@ def one_dense_one_active():
     # Output
     print(activation1.output[:5])
 
+
 # One layer dense
 def one_dense():
     # Create Dense layer with 2 input features and 3 output values
@@ -146,6 +155,7 @@ def one_dense():
 
     # Output
     print(dense1.output[:5])
+
 
 # Simple one layer dense with no classes
 def one_dense_classless():
