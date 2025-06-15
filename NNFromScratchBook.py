@@ -1,7 +1,11 @@
 # Simple neural network
 
 
-# Input > layer1 > activation1 > layer2 > activation2 > loss
+'''
+Activations 1 -> N-1 are typically ReLU
+Activation N is typically softmax
+Input > layer1 > activation1 ... layerN > activationN > loss 
+'''
 
 import numpy as np
 import nnfs
@@ -48,6 +52,12 @@ class Activation_Softmax:
 
         self.output = probabilities
 
+class Loss:
+
+
+class Cross_Entropy(Loss):
+    def forward(self, inputs):
+        self.output = 
 
 # Create dataset
 X, y = spiral_data(100, 3)
