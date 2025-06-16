@@ -52,12 +52,44 @@ class Activation_Softmax:
 
         self.output = probabilities
 
+
+# Common loss class
 class Loss:
+    # Calculates the data and regularization losses
+    # given model output and ground truth values
+    def calculate(self, output, y):
+        sample_losses = self.forward(output, y)
+        data_loss = np.mean(sample_losses)
+        return data_loss
 
 
-class Cross_Entropy(Loss):
-    def forward(self, inputs):
-        self.output = 
+# Categorical Cross Entropy uses two probability distributions, final output probability and the one-hot encoding
+# One-hot encoding is a vector/list of classes with only one class active (0 is unactive, 1 is active) e.g. [0,1,0,0]
+# To calculate, take the natural log of each output probability, multiply by corresponding one-hot, sum, then negate
+class Loss_CategoricalCrossEntropy(Loss):
+    def forward(self, y_pred, y_target):
+        samples = len(y_pred)
+
+        # Clip data to prevent division by 0
+        # Clip both sides to not drag mean towards any value
+        y_pred_clipped = np.clip(y_pred, 1e-7, 1 - 1e-7)
+
+        # Probabilities for target values - only if categorical labels
+        # values are indices for each sample: [0, 1, 1] means sample 1 index 0, sample 2 index 1, sample 3 index 1
+        # Numpy arrays can be indexed given arrays: range -> [0, 1, 2], y_target -> [0, 1, 1], access [0,0], [1,1], [2,1]
+        if len(y_target.shape) == 1:
+            correct_confidences = y_pred_clipped[range(samples), y_target]
+
+        # 2d target means each sample is one-hot encoded
+        # [[1, 0, 0], [0, 1, 0], [0, 1, 0]], sample 1 index 0, sample 2 index 1, sample 3 index 1
+        # by specifying axis 1, it sums the values along axis 1 for each row (all values per row)
+        elif len(y_target.shape) == 2:
+            correct_confidence = np.sum(y_pred_clipped*y_target, axis=1)
+
+        # Losses
+        negative_log_likelihoods = -np.log(correct_confidences)
+        return np.mean(negative_log_likelihoods)
+
 
 # Create dataset
 X, y = spiral_data(100, 3)
@@ -78,17 +110,21 @@ def main():
 # Two layer dense
 # Rectified Linear Units (ReLU) activation for Dense1
 # Softmax activation for Dense2
-# Loss pass for final output
+# Loss (error) calculation
+# Accuracy (correct guesses) calculation
 def two_dense_two_active_loss():
     # Create Dense layer with 2 input features and 3 output values
     # Create ReLU activation (used with Dense Layer)
     dense1 = Layer_Dense(2, 3)
     activation1 = Activation_ReLU()
 
-    # Create Dense layer with 2 input features and 3 output values
-    # Create ReLU activation (used with Dense Layer)
+    # Create Dense layer with 3 input features and 3 output values
+    # Create Softmax activation (used with final Dense Layer)
     dense2 = Layer_Dense(3, 3)
     activation2 = Activation_Softmax()
+
+    # Create loss function to calculate total mean loss for dataset
+    loss_function = Loss_CategoricalCrossEntropy()
 
     # Perform a forward pass of our training data through this layer
     dense1.forward(X)
@@ -99,12 +135,26 @@ def two_dense_two_active_loss():
     # Perform a forward pass of our training data through this layer
     dense2.forward(activation1.output)
 
-    # Takes output from previous layer and runs it through ReLU activation
+    # Takes output from final Dense layer and runs it through Softmax activation
     activation2.forward(dense2.output)
 
     # Output
     print(activation2.output[:5])
 
+    # Perform a forward pass through loss function
+    loss = loss_function.calculate(activation2.output, y)
+
+    print(f"loss: {loss}")
+
+    class_targets = y
+    # Converts one-hot 2d arrays into singular array
+    if class_targets.shape == 2:
+        class_targets = np.argmax(class_targets, axis=1)
+
+    predictions = np.argmax(activation2.output, axis=1)
+    accuracy = np.mean(predictions == class_targets)
+
+    print(f"accuracy: {accuracy}")
 
 # Two layer dense
 # Rectified Linear Units (ReLU) activation for Dense1
@@ -115,8 +165,8 @@ def two_dense_two_active():
     dense1 = Layer_Dense(2, 3)
     activation1 = Activation_ReLU()
 
-    # Create Dense layer with 2 input features and 3 output values
-    # Create ReLU activation (used with Dense Layer)
+    # Create Dense layer with 3 input features and 3 output values
+    # Create Softmax activation (used with final Dense Layer)
     dense2 = Layer_Dense(3, 3)
     activation2 = Activation_Softmax()
 
@@ -129,7 +179,7 @@ def two_dense_two_active():
     # Perform a forward pass of our training data through this layer
     dense2.forward(activation1.output)
 
-    # Takes output from previous layer and runs it through ReLU activation
+    # Takes output from previous layer and runs it through Softmax activation
     activation2.forward(dense2.output)
 
     # Output
