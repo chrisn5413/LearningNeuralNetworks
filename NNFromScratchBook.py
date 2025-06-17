@@ -10,6 +10,7 @@ Input > layer1 > activation1 ... layerN > activationN > loss
 import numpy as np
 import nnfs
 from nnfs.datasets import spiral_data
+from nnfs.datasets import vertical_data
 # import matplotlib.pyplot as plt
 
 
@@ -30,6 +31,8 @@ class Layer_Dense:
 
 
 # RELU activation, forces node outputs to be 0 or positive only
+# this function is effectively f(x) = x (or linear), but by cutting off negative values,
+# nodes are able to more easily represent nonlinear functions without being a complex linear function itself
 class Activation_ReLU:
     # Forward pass
     def forward(self, inputs):
@@ -100,7 +103,9 @@ plt.show()'''
 # contains multiple stages of making a neural network from complex to simple
 # Just choose one to run
 def main():
-    neural_network()
+    # neural_network_backpropagation()
+    simple_one_neuron_with_backpropagation()
+    # neural_network_random_weights_and_biases()
     # two_dense_two_active_loss_accuracy()
     # two_dense_two_active()
     # one_dense_one_active()
@@ -108,7 +113,16 @@ def main():
     # one_dense_classless()
 
 
-def neural_network():
+def neural_network_backpropagation():
+    pass
+
+
+# runs a simple neural network with an easy dataset (vertical data)
+# to show why random weights/biases don't work well, use spiral data
+def neural_network_random_weights_and_biases():
+    # Comment the vertical data below to use spiral data
+    # X, y = vertical_data(100, 3)
+
     # Create model
     dense1 = Layer_Dense(2, 3)  # first dense layer, 2 inputs
     activation1 = Activation_ReLU()
@@ -213,6 +227,7 @@ def two_dense_two_active_loss_accuracy():
 
     print(f"accuracy: {accuracy}")
 
+
 # Two layer dense
 # Rectified Linear Units (ReLU) activation for Dense1
 # Softmax activation for Dense2
@@ -292,6 +307,70 @@ def one_dense_classless():
     layer1_outputs = np.dot(inputs, np.array(weights).T) + biases
     layer2_outputs = np.dot(layer1_outputs, np.array(weights2).T) + biases2
     print(layer2_outputs)
+
+
+
+
+# All functions below are are examples
+
+def simple_one_neuron_with_backpropagation():
+    # Forward pass
+    x = [1.0, -2.0, 3.0]  # input values
+    w = [-3.0, -1.0, 2.0]  # weights
+    b = 1.0  # bias
+
+    # Multiplying inputs by weights (h, i, j: represent functions variables)
+    h = x[0] * w[0]
+    i = x[1] * w[1]
+    j = x[2] * w[2]
+    # print(xw0, xw1, xw2, b)
+
+    # Adding weighted inputs and a bias
+    z = h + i + j + b
+    # print(z)
+
+    # ReLU activation function
+    y = max(z,0)
+    # print(y)
+
+    # Use the chain rule with derivatives for back propagation
+    # y(z) = y(z(h,i,j,b)) = y(z(h(x0,w0),i(x1,w1),j(x2,w2), b) =  max(((x0*w0) + (x1*w1) + (x2*w2) + b), 0)
+
+    #   y'(z): if output == z, derivative of a variable is 1. if output == 0, derivative of constant is 0
+
+    #   d/dh -> z(h,i,j,b):  h+i+j+b  =  1+0+0+0  =  1   (dsum_dh) partial derivative of sum with respect to h
+    #   d/di -> z(h,i,j,b):  h+i+j+b  =  0+1+0+0  =  1   (dsum_di) partial derivative of sum with respect to i
+    #   d/dj -> z(h,i,j,b):  h+i+j+b  =  0+0+1+0  =  1   (dsum_dj) partial derivative of sum with respect to j
+    #   d/db -> z(h,i,j,b):  h+i+j+b  =  0+0+0+1  =  1   (dsum_db) partial derivative of sum with respect to b
+
+    #   d/dx -> h(x,w0): x*w0  =  w0    (dmul_dx0) partial derivative of multiply
+    #   d/dx -> i(x,w1): x*w1  =  w1    (dmul_dx1) partial derivative of multiply
+    #   d/dx -> j(x,w2): x*w2  =  w2    (dmul_dx2) partial derivative of multiply
+
+    # back propagation
+    # The derivative of ReLU and che chain rule
+    next_layer_derivative = 1       # example assumption of next derivative (layer to the right, we are going left)
+    drelu_dz = next_layer_derivative * (1. if z > 0 else 0.)     # z is 6 so relu_dz = 1
+    print(drelu_dz)
+
+    # Partial derivatives of the multiplication, the chain rule
+    dsum_dh = 1
+    dsum_di = 1
+    dsum_dj = 1
+    dsum_db = 1
+    drelu_dh = drelu_dz * dsum_dh
+    drelu_di = drelu_dz * dsum_di
+    drelu_dj = drelu_dz * dsum_dj
+    drelu_db = drelu_dz * dsum_db
+    print(drelu_dh, drelu_di, drelu_dj, drelu_db)
+
+    dmul_dx0 = w[0]
+    dmul_dx1 = w[1]
+    dmul_dx2 = w[2]
+    drelu_dx0 = drelu_dh * dmul_dx0
+    drelu_dx1 = drelu_di * dmul_dx1
+    drelu_dx2 = drelu_dj * dmul_dx2
+    print(drelu_dx0, drelu_dx1, drelu_dx2)
 
 
 if __name__ == '__main__':
