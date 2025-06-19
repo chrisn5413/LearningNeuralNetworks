@@ -104,7 +104,8 @@ plt.show()'''
 # Just choose one to run
 def main():
     # neural_network_backpropagation()
-    simple_one_neuron_with_backpropagation()
+    backpropagation_with_one_layer()
+    # simple_one_neuron_with_backpropagation()
     # neural_network_random_weights_and_biases()    # cumulative of the below functions
     # two_dense_two_active_loss_accuracy()
     # two_dense_two_active()
@@ -393,7 +394,7 @@ def simple_one_neuron_with_backpropagation():
     w[0] += -0.001 * dw[0]
     w[1] += -0.001 * dw[1]
     w[2] += -0.001 * dw[2]
-    b += 0.001 * db
+    b += -0.001 * db
 
     print("slightly tweeked weight and bias:\n   ", w, b)
 
@@ -427,13 +428,15 @@ def backpropagation_with_one_layer():
 
     # sums weights of given input
     # and multiply by the passed in gradient from this neuron
-    dx0 = sum(weights[0]) * dvalues[0]
-    dx1 = sum(weights[1]) * dvalues[0]
-    dx2 = sum(weights[2]) * dvalues[0]
-    dx3 = sum(weights[3]) * dvalues[0]
+    # dx0 = sum(weights[0]) * dvalues[0]
+    # dx1 = sum(weights[1]) * dvalues[0]
+    # dx2 = sum(weights[2]) * dvalues[0]
+    # dx3 = sum(weights[3]) * dvalues[0]
+    # dinputs = np.array([dx0, dx1, dx2, dx3])
+    
+    dinputs = np.dot(dvalues[0], weights.T)
 
-    dinputs = np.array([dx0, dx1, dx2, dx3])
-
+    print(dinputs)
 
 if __name__ == '__main__':
     main()
