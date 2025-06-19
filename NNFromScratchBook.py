@@ -104,8 +104,12 @@ plt.show()'''
 # Just choose one to run
 def main():
     # neural_network_backpropagation()
-    backpropagation_with_one_layer()
+    calculate_relu_gradient()
+    # calculate_gradient_with_respect_to_bias()
+    # calculate_gradient_with_respect_to_weight()
+    # calculate_gradient_with_respect_to_input()
     # simple_one_neuron_with_backpropagation()
+
     # neural_network_random_weights_and_biases()    # cumulative of the below functions
     # two_dense_two_active_loss_accuracy()
     # two_dense_two_active()
@@ -117,6 +121,215 @@ def main():
 def neural_network_backpropagation():
     pass
 
+# shows how to get the gradient derivative for the ReLU function
+def calculate_relu_gradient():
+    # Example layer output
+    z = np.array([[1, 2, -3, -4],
+                  [2, -7, -1, 3],
+                  [-1, 2, 5, -1]])
+
+    dvalues = np.array([[1, 2, 3, 4],
+                        [5, 6, 7, 8],
+                        [9, 10, 11, 12]])
+
+    # ReLU activation's derivative
+    # drelu = np.zeros_like(z)
+    # drelu[z > 0] = 1
+    # print(drelu)
+
+    # The chain rule
+    # drelu *= dvalues
+    # print(drelu)
+
+    # shortens the above code by directly settings values in drelu to zero based on array z <= 0
+    drelu = dvalues.copy()
+    drelu[z < 0] = 0
+    print(drelu)
+
+
+# shows how to get the gradient derivative with respect to the bias
+def calculate_gradient_with_respect_to_bias():
+    # Passed in gradient from the next layer
+    # the next layer provides a gradient for each neuron
+    # for the purpose of this example we're going to use an array of incremental gradient values
+    dvalues = np.array([[1., 1., 1.],
+                        [2., 2., 2.],
+                        [3., 3., 3.]])
+
+    # One bias for each neuron
+    # biases are the row vector with a shape (1, neurons)
+    biases = np.array([[2, 3, 0.5]])
+
+    # dbiases - sum values, do this over samples (first axis), keep dims
+    # since this by default will produce a plain list - we explained this in chapter 4
+    dbiases = np.sum(dvalues, axis=0, keepdims=True)
+
+    print(dbiases)
+
+
+# shows how to get the gradient derivative with respect to the weight
+def calculate_gradient_with_respect_to_weight():
+    # Passed in gradient from the next layer
+    # the next layer provides a gradient for each neuron
+    # for the purpose of this example we're going to use an array of incremental gradient values
+    dvalues = np.array([[1., 1., 1.],
+                        [2., 2., 2.],
+                        [3., 3., 3.]])
+
+    # We have 3 sets of inputs - samples
+    inputs = np.array([[1, 2, 3, 2.5],
+                        [2., 5., -1., 2],
+                        [-1.5, 2.7, 3.3, -0.8]])
+
+    # sum weights of given input
+    # and multiply by the passed in gradient for this neuron
+    # dweights is the derivative of the neuron function with respect to the weights
+    dweights = np.dot(inputs.T, dvalues)
+
+    print(dweights)
+
+
+# shows how to get the gradient derivative with respect to the input
+def calculate_gradient_with_respect_to_input():
+    # Passed in gradient from the next layer in a normal pass
+
+    # dvalues = np.array([[1., 1., 1.]])        # In this example we are using a vector of 1s
+
+    # the next layer provides a gradient for each neuron
+    # for the purpose of this example we're going to use an array of incremental gradient values
+    dvalues = np.array([[1., 1., 1.],
+                        [2., 2., 2.],
+                        [3., 3., 3.]])
+
+    # We have 3 sets of weights - one set for each neuron
+    # we have 4 inputs, thus 4 weights
+    # recall that we keep weights transposed
+    weights = np.array([[0.2, 0.8, -0.5, 1.0],
+                        [0.5, -0.91, 0.26, -0.5],
+                        [-0.26, -0.27, 0.17, 0.87]]).T
+
+    # old code, what np.dot() does at a low level (the dot function is faster)
+    # dx0 = sum(weights[0]) * dvalues[0]
+    # dx1 = sum(weights[1]) * dvalues[0]
+    # dx2 = sum(weights[2]) * dvalues[0]
+    # dx3 = sum(weights[3]) * dvalues[0]
+    # dinputs = np.array([dx0, dx1, dx2, dx3])
+
+    # sums weights of given input
+    # and multiply by the passed in gradient from this neuron
+    # dinputs = np.dot(dvalues[0], weights.T)       # old code, from the single dvalues vector
+
+    # dinputs is the derivative of the neuron function with respect to the input
+    dinputs = np.dot(dvalues, weights.T)
+
+    print(dinputs)
+
+
+# This is an example of how to reduce the output of a single neuron.
+# This is not something that would normally be done since usually you need to
+# do this to minimize the loss. (This is only to show how it works and that it does
+# reduce the final output value)
+def simple_one_neuron_with_backpropagation():
+    # Forward pass
+    x = [1.0, -2.0, 3.0]  # input values
+    w = [-3.0, -1.0, 2.0]  # weights
+    b = 1.0  # bias
+
+    # Multiplying inputs by weights (xw0, xw1, xw2: represent functions variables)
+    xw0 = x[0] * w[0]
+    xw1 = x[1] * w[1]
+    xw2 = x[2] * w[2]
+    # print(xw0, xw1, xw2, b)
+
+    # Adding weighted inputs and a bias
+    z = xw0 + xw1 + xw2 + b
+    # print(z)
+
+    # ReLU activation function
+    y = max(z,0)
+    print("original y ",y)
+
+    # Use the chain rule with derivatives for back propagation
+    # y(z) = y(z(xw0,xw1,xw2,b)) = ReLU(sum(mul(x0,w0) + mul(x1,w1) + mul(x2,w2) + b), 0)
+
+    # y'(z): if output == z, derivative of a variable is 1. if output == 0, derivative of constant is 0
+
+    # d/dxw0 -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  1+0+0+0  =  1   (dsum_dxw0) partial derivative of sum with respect to h
+    # d/dxw1 -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  0+1+0+0  =  1   (dsum_dxw1) partial derivative of sum with respect to i
+    # d/dxw2 -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  0+0+1+0  =  1   (dsum_dxw2) partial derivative of sum with respect to j
+    # d/db   -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  0+0+0+1  =  1   (dsum_db) partial derivative of sum with respect to b
+
+    #   d/dx -> xw0(x0,w0): x0*w0  =  w0*1  =  w0    (dmul_dx0) partial derivative of multiply with respect to x
+    #   d/dx -> xw1(x1,w1): x1*w1  =  w1*1  =  w1    (dmul_dx1) partial derivative of multiply with respect to x
+    #   d/dx -> xw2(x2,w2): x2*w2  =  w2*1  =  w2    (dmul_dx2) partial derivative of multiply with respect to x
+    #   d/dw -> xw0(x0,w0): x0*w0  =  x0*1  =  x0    (dmul_dw0) partial derivative of multiply with respect to w
+    #   d/dw -> xw1(x1,w1): x1*w1  =  x1*1  =  x1    (dmul_dw1) partial derivative of multiply with respect to w
+    #   d/dw -> xw2(x2,w2): x2*w2  =  x2*1  =  x2    (dmul_dw2) partial derivative of multiply with respect to w
+
+    # back propagation
+    # The derivative of ReLU and the chain rule
+    dvalue = 1       # example assumption of next derivative (layer to the right, we are going left)
+    drelu_dz = dvalue * (1. if z > 0 else 0.)     # z is 6 so relu_dz = 1
+    # print(drelu_dz)
+
+    # Partial derivatives of the multiplication, the chain rule
+    dsum_dxw0 = 1
+    dsum_dxw1 = 1
+    dsum_dxw2 = 1
+    dsum_db = 1
+    drelu_dxw0 = drelu_dz * dsum_dxw0
+    drelu_dxw1 = drelu_dz * dsum_dxw1
+    drelu_dxw2 = drelu_dz * dsum_dxw2
+    drelu_db = drelu_dz * dsum_db
+    # print(drelu_dxw0, drelu_dxw1, drelu_dxw2, drelu_db)
+
+    # Partial derivatives of the multiplication, the chain rule
+    dmul_dx0 = w[0]
+    dmul_dx1 = w[1]
+    dmul_dx2 = w[2]
+    dmul_dw0 = x[0]
+    dmul_dw1 = x[1]
+    dmul_dw2 = x[2]
+    drelu_dx0 = drelu_dxw0 * dmul_dx0
+    drelu_dx1 = drelu_dxw1 * dmul_dx1
+    drelu_dx2 = drelu_dxw2 * dmul_dx2
+    drelu_dw0 = drelu_dxw0 * dmul_dw0
+    drelu_dw1 = drelu_dxw1 * dmul_dw1
+    drelu_dw2 = drelu_dxw2 * dmul_dw2
+    print("partial derivatives x0,w0,x1,w1,x2,w2:\n   ", drelu_dx0, drelu_dw0, drelu_dx1, drelu_dw1, drelu_dx2, drelu_dw2)
+
+    # all partial derivatives of the single neuron
+    dx = [drelu_dx0, drelu_dx1, drelu_dx2]  # gradients on inputs
+    dw = [drelu_dw0, drelu_dw1, drelu_dw2]  # gradients on weights
+    db = drelu_db  #  gradient on bias (there is only 1 bias)
+
+    print("original weight and bias:\n   ",w,b)
+
+    w[0] += -0.001 * dw[0]
+    w[1] += -0.001 * dw[1]
+    w[2] += -0.001 * dw[2]
+    b += -0.001 * db
+
+    print("slightly tweeked weight and bias:\n   ", w, b)
+
+
+    # New Forward pass with tweeked values
+    # Multiplying inputs by weights (xw0, xw1, xw2: represent functions variables)
+    xw0 = x[0] * w[0]
+    xw1 = x[1] * w[1]
+    xw2 = x[2] * w[2]
+    # print(xw0, xw1, xw2, b)
+
+    # Adding
+    z = xw0 + xw1 + xw2 + b
+
+    # ReLU activation function
+    y = max(z,0)
+    print("new y ",y)
+
+
+
+# below is the beginning of a neural network up till the end of the forward pass
 
 # runs a simple neural network with an easy dataset (vertical data)
 # to show why random weights/biases don't work well, use spiral data
@@ -310,133 +523,6 @@ def one_dense_classless():
     print(layer2_outputs)
 
 
-
-# This is an example of how to reduce the output of a single neuron.
-# This is not something that would normally be done since usually you need to
-# do this to minimize the loss. (This is only to show how it works and that it does
-# reduce the final output value)
-def simple_one_neuron_with_backpropagation():
-    # Forward pass
-    x = [1.0, -2.0, 3.0]  # input values
-    w = [-3.0, -1.0, 2.0]  # weights
-    b = 1.0  # bias
-
-    # Multiplying inputs by weights (xw0, xw1, xw2: represent functions variables)
-    xw0 = x[0] * w[0]
-    xw1 = x[1] * w[1]
-    xw2 = x[2] * w[2]
-    # print(xw0, xw1, xw2, b)
-
-    # Adding weighted inputs and a bias
-    z = xw0 + xw1 + xw2 + b
-    # print(z)
-
-    # ReLU activation function
-    y = max(z,0)
-    print("original y ",y)
-
-    # Use the chain rule with derivatives for back propagation
-    # y(z) = y(z(xw0,xw1,xw2,b)) = ReLU(sum(mul(x0,w0) + mul(x1,w1) + mul(x2,w2) + b), 0)
-
-    # y'(z): if output == z, derivative of a variable is 1. if output == 0, derivative of constant is 0
-
-    # d/dxw0 -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  1+0+0+0  =  1   (dsum_dxw0) partial derivative of sum with respect to h
-    # d/dxw1 -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  0+1+0+0  =  1   (dsum_dxw1) partial derivative of sum with respect to i
-    # d/dxw2 -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  0+0+1+0  =  1   (dsum_dxw2) partial derivative of sum with respect to j
-    # d/db   -> z(xw0,xw1,xw2,b):  xw0+xw1+xw2+b  =  0+0+0+1  =  1   (dsum_db) partial derivative of sum with respect to b
-
-    #   d/dx -> xw0(x0,w0): x0*w0  =  w0*1  =  w0    (dmul_dx0) partial derivative of multiply with respect to x
-    #   d/dx -> xw1(x1,w1): x1*w1  =  w1*1  =  w1    (dmul_dx1) partial derivative of multiply with respect to x
-    #   d/dx -> xw2(x2,w2): x2*w2  =  w2*1  =  w2    (dmul_dx2) partial derivative of multiply with respect to x
-    #   d/dw -> xw0(x0,w0): x0*w0  =  x0*1  =  x0    (dmul_dw0) partial derivative of multiply with respect to w
-    #   d/dw -> xw1(x1,w1): x1*w1  =  x1*1  =  x1    (dmul_dw1) partial derivative of multiply with respect to w
-    #   d/dw -> xw2(x2,w2): x2*w2  =  x2*1  =  x2    (dmul_dw2) partial derivative of multiply with respect to w
-
-    # back propagation
-    # The derivative of ReLU and the chain rule
-    dvalue = 1       # example assumption of next derivative (layer to the right, we are going left)
-    drelu_dz = dvalue * (1. if z > 0 else 0.)     # z is 6 so relu_dz = 1
-    # print(drelu_dz)
-
-    # Partial derivatives of the multiplication, the chain rule
-    dsum_dxw0 = 1
-    dsum_dxw1 = 1
-    dsum_dxw2 = 1
-    dsum_db = 1
-    drelu_dxw0 = drelu_dz * dsum_dxw0
-    drelu_dxw1 = drelu_dz * dsum_dxw1
-    drelu_dxw2 = drelu_dz * dsum_dxw2
-    drelu_db = drelu_dz * dsum_db
-    # print(drelu_dxw0, drelu_dxw1, drelu_dxw2, drelu_db)
-
-    # Partial derivatives of the multiplication, the chain rule
-    dmul_dx0 = w[0]
-    dmul_dx1 = w[1]
-    dmul_dx2 = w[2]
-    dmul_dw0 = x[0]
-    dmul_dw1 = x[1]
-    dmul_dw2 = x[2]
-    drelu_dx0 = drelu_dxw0 * dmul_dx0
-    drelu_dx1 = drelu_dxw1 * dmul_dx1
-    drelu_dx2 = drelu_dxw2 * dmul_dx2
-    drelu_dw0 = drelu_dxw0 * dmul_dw0
-    drelu_dw1 = drelu_dxw1 * dmul_dw1
-    drelu_dw2 = drelu_dxw2 * dmul_dw2
-    print("partial derivatives x0,w0,x1,w1,x2,w2:\n   ", drelu_dx0, drelu_dw0, drelu_dx1, drelu_dw1, drelu_dx2, drelu_dw2)
-
-    # all partial derivatives of the single neuron
-    dx = [drelu_dx0, drelu_dx1, drelu_dx2]  # gradients on inputs
-    dw = [drelu_dw0, drelu_dw1, drelu_dw2]  # gradients on weights
-    db = drelu_db  #  gradient on bias (there is only 1 bias)
-
-    print("original weight and bias:\n   ",w,b)
-
-    w[0] += -0.001 * dw[0]
-    w[1] += -0.001 * dw[1]
-    w[2] += -0.001 * dw[2]
-    b += -0.001 * db
-
-    print("slightly tweeked weight and bias:\n   ", w, b)
-
-
-    # New Forward pass with tweeked values
-    # Multiplying inputs by weights (xw0, xw1, xw2: represent functions variables)
-    xw0 = x[0] * w[0]
-    xw1 = x[1] * w[1]
-    xw2 = x[2] * w[2]
-    # print(xw0, xw1, xw2, b)
-
-    # Adding
-    z = xw0 + xw1 + xw2 + b
-
-    # ReLU activation function
-    y = max(z,0)
-    print("new y ",y)
-
-
-def backpropagation_with_one_layer():
-    # Passed in gradient from the next layer in a normal pass
-    # In this example we are using a vector of 1s
-    dvalues = np.array([[1., 1., 1.]])
-
-    # We have 3 sets of weights - one set for each neuron
-    # we have 4 inputs, thus 4 weights
-    # recall that we keep weights transposed
-    weights = np.array([[0.2, 0.8, -0.5, 1.0],
-                        [0.5, -0.91, 0.26, -0.5],
-                        [-0.26, -0.27, 0.17, 0.87]]).T
-
-    # sums weights of given input
-    # and multiply by the passed in gradient from this neuron
-    # dx0 = sum(weights[0]) * dvalues[0]
-    # dx1 = sum(weights[1]) * dvalues[0]
-    # dx2 = sum(weights[2]) * dvalues[0]
-    # dx3 = sum(weights[3]) * dvalues[0]
-    # dinputs = np.array([dx0, dx1, dx2, dx3])
-    
-    dinputs = np.dot(dvalues[0], weights.T)
-
-    print(dinputs)
 
 if __name__ == '__main__':
     main()
