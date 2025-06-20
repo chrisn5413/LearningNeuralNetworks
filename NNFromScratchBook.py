@@ -18,6 +18,7 @@ nnfs.init()
 
 
 class Layer_Dense:
+
     # Layer initialization
     def __init__(self, n_inputs, n_neurons):
         # Initialize weights and biases
@@ -43,6 +44,7 @@ class Layer_Dense:
 # this function is effectively f(x) = x (or linear), but by cutting off negative values,
 # nodes are able to more easily represent nonlinear functions without being a complex linear function itself
 class Activation_ReLU:
+
     # Forward pass
     def forward(self, inputs):
         # Calculate output values from input
@@ -51,7 +53,7 @@ class Activation_ReLU:
 
     # Backward pass
     def backward(self, dvalues):
-        # Since we need to modify the original variable,
+    # Since we need to modify the original variable,
         # we'll make a copy first
         self.dinputs = dvalues.copy()
 
@@ -62,21 +64,41 @@ class Activation_ReLU:
 # Softmax activation, gives meaning to individual values/features within each sample/feature set
 #   by making each value a probability with respect to the sum of all values (between 0 and 1).
 class Activation_Softmax:
+
     # Forward pass
     def forward(self, inputs):
+        # Remember input values
+        self.inputs = inputs
+
         # Get unnormalized probabilities.
         # Overflow prevention: Subtract the largest value to limit the scale of e^x.
         #   x-x = 0, -->  e^0 = 1.
         exp_values = np.exp(inputs - np.max(inputs, axis=1, keepdims=True))
 
-        # Normalizing gives a baseline that allows all samples to be relevant/comparable to each other
+        # Normalize them for each sample
+        # gives a baseline that allows all samples to be relevant/comparable to each other
         probabilities = exp_values / np.sum(exp_values, axis=1, keepdims=True)
 
         self.output = probabilities
 
+    # Backward pass
+    def backward(self, dvalues):
+        # Create uninitialized array
+        self.dinputs = np.empty_like(dvalues)
+
+        # Enumerate outputs and gradients
+        for index, (single_output, single_dvalues) in enumerate(zip(self.output, dvalues)):
+            # Flatten output array
+            single_output = single_output.reshape(-1, 1)
+            # Calculate Jacobian matrix of the output
+            jacobian_matrix = np.diagflat(single_output) - np.dot(single_output, single_output.T)
+            # Calculate sample-wise gradient and add it to the array of sample gradients
+            self.dinputs[index] = np.dot(jacobian_matrix, single_dvalues)
+
 
 # Common loss class
 class Loss:
+
     # Calculates the data and regularization losses
     # given model output and ground truth values
     def calculate(self, output, y):
@@ -89,7 +111,9 @@ class Loss:
 # One-hot encoding is a vector/list of classes with only one class active (0 is unactive, 1 is active) e.g. [0,1,0,0]
 # To calculate, take the natural log of each output probability, multiply by corresponding one-hot, sum, then negate
 class Loss_CategoricalCrossEntropy(Loss):
+
     def forward(self, y_pred, y_true):
+        # Numbers of samples in a batch
         samples = len(y_pred)
 
         # Clip data to prevent division by 0
@@ -102,7 +126,7 @@ class Loss_CategoricalCrossEntropy(Loss):
         if len(y_true.shape) == 1:
             correct_confidences = y_pred_clipped[range(samples), y_true]
 
-        # 2d target means each sample is one-hot encoded
+        # 2d shape means each sample is one-hot encoded
         # [[1, 0, 0], [0, 1, 0], [0, 1, 0]], sample 1 index 0, sample 2 index 1, sample 3 index 1
         # by specifying axis 1, it sums the values along axis 1 for each row (all values per row)
         elif len(y_true.shape) == 2:
@@ -117,7 +141,7 @@ class Loss_CategoricalCrossEntropy(Loss):
         # Number of samples
         samples = len(dvalues)
         # Number of features in every sample
-        # We'l use the first sample to count them
+        # We'll1 use the first sample to count them
         features = len(dvalues[0])
 
         # If features are sparse, turn them into one-hot vector
@@ -129,6 +153,40 @@ class Loss_CategoricalCrossEntropy(Loss):
         # Normalize gradient
         self.dinputs = self.dinputs / samples
 
+
+# Softmax classifier - combined Softmax activation
+# and cross-entropy loss for faster backward step
+class Activation_Softmax_Loss_CategoricalCrossEntropy():
+
+    # Creates activation and loss function objects
+    def __init__(self):
+        self.activation = Activation_Softmax()
+        self.loss = Loss_CategoricalCrossEntropy()
+
+    # Forward pass
+    def forward(self, inputs, y_true):
+        # Output layer's activation function
+        self.activation.forward(inputs)
+        # Set the output
+        self.output = self.activation.output
+        # Calculate and return loss value
+        return self.loss.calculate(self.output, y_true)
+
+    # Backward pass
+    def backward(self, dvalues, y_true):
+        # Number of samples
+        samples = len(dvalues)
+
+        # If labels are one-hot encoded, turn them into discrete values
+        if len(y_true.shape) == 2:
+            y_true = np.argmax(y_true, axis=1)
+
+        # Copy so we can safely modify
+        self.dinputs = dvalues.copy()
+        # Calculate gradient
+        self.dinputs[range(samples), y_true] -= 1
+        # Normalize gradient
+        self.dinputs = self.dinputs / samples
 
 
 # Create dataset
