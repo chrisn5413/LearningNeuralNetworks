@@ -89,7 +89,7 @@ class Loss:
 # One-hot encoding is a vector/list of classes with only one class active (0 is unactive, 1 is active) e.g. [0,1,0,0]
 # To calculate, take the natural log of each output probability, multiply by corresponding one-hot, sum, then negate
 class Loss_CategoricalCrossEntropy(Loss):
-    def forward(self, y_pred, y_target):
+    def forward(self, y_pred, y_true):
         samples = len(y_pred)
 
         # Clip data to prevent division by 0
@@ -99,18 +99,36 @@ class Loss_CategoricalCrossEntropy(Loss):
         # Probabilities for target values - only if categorical labels
         # values are indices for each sample: [0, 1, 1] means sample 1 index 0, sample 2 index 1, sample 3 index 1
         # Numpy arrays can be indexed given arrays: range -> [0, 1, 2], y_target -> [0, 1, 1], access [0,0], [1,1], [2,1]
-        if len(y_target.shape) == 1:
-            correct_confidences = y_pred_clipped[range(samples), y_target]
+        if len(y_true.shape) == 1:
+            correct_confidences = y_pred_clipped[range(samples), y_true]
 
         # 2d target means each sample is one-hot encoded
         # [[1, 0, 0], [0, 1, 0], [0, 1, 0]], sample 1 index 0, sample 2 index 1, sample 3 index 1
         # by specifying axis 1, it sums the values along axis 1 for each row (all values per row)
-        elif len(y_target.shape) == 2:
-            correct_confidence = np.sum(y_pred_clipped*y_target, axis=1)
+        elif len(y_true.shape) == 2:
+            correct_confidence = np.sum(y_pred_clipped*y_true, axis=1)
 
         # Losses
         negative_log_likelihoods = -np.log(correct_confidences)
         return np.mean(negative_log_likelihoods)
+
+    # Backward pass
+    def backward(self, dvalues, y_true):
+        # Number of samples
+        samples = len(dvalues)
+        # Number of features in every sample
+        # We'l use the first sample to count them
+        features = len(dvalues[0])
+
+        # If features are sparse, turn them into one-hot vector
+        if len(y_true.shape) == 1:
+            y_true = np.eye(features)[y_true]
+
+        # Calculate gradient
+        self.dinputs = -y_true / dvalues
+        # Normalize gradient
+        self.dinputs = self.dinputs / samples
+
 
 
 # Create dataset
