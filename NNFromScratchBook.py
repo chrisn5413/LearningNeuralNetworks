@@ -16,7 +16,7 @@ from nnfs.datasets import vertical_data
 
 nnfs.init()
 
-
+# Dense layer
 class Layer_Dense:
 
     # Layer initialization
@@ -27,9 +27,10 @@ class Layer_Dense:
 
     # Forward pass
     def forward(self, inputs):
+        # Remember input values
+        self.inputs = inputs
         # Calculate output values from inputs, weights, and biases
         self.output = np.dot(inputs, self.weights) + self.biases
-        self.inputs = inputs
 
     # Backward pass
     def backward(self, dvalues):
@@ -47,13 +48,14 @@ class Activation_ReLU:
 
     # Forward pass
     def forward(self, inputs):
-        # Calculate output values from input
-        self.output = np.maximum(0, inputs)
+        # Remember input values
         self.inputs = inputs
+        # Calculate output values from inputs
+        self.output = np.maximum(0, inputs)
 
     # Backward pass
     def backward(self, dvalues):
-    # Since we need to modify the original variable,
+        # Since we need to modify the original variable,
         # we'll make a copy first
         self.dinputs = dvalues.copy()
 
@@ -102,8 +104,13 @@ class Loss:
     # Calculates the data and regularization losses
     # given model output and ground truth values
     def calculate(self, output, y):
+        # Calculate sample losses
         sample_losses = self.forward(output, y)
+
+        # Calculate mean loss
         data_loss = np.mean(sample_losses)
+
+        # Return loss
         return data_loss
 
 
@@ -130,18 +137,18 @@ class Loss_CategoricalCrossEntropy(Loss):
         # [[1, 0, 0], [0, 1, 0], [0, 1, 0]], sample 1 index 0, sample 2 index 1, sample 3 index 1
         # by specifying axis 1, it sums the values along axis 1 for each row (all values per row)
         elif len(y_true.shape) == 2:
-            correct_confidence = np.sum(y_pred_clipped*y_true, axis=1)
+            correct_confidence = np.sum(y_pred_clipped * y_true, axis=1)
 
         # Losses
         negative_log_likelihoods = -np.log(correct_confidences)
-        return np.mean(negative_log_likelihoods)
+        return negative_log_likelihoods
 
     # Backward pass
     def backward(self, dvalues, y_true):
         # Number of samples
         samples = len(dvalues)
         # Number of features in every sample
-        # We'll1 use the first sample to count them
+        # We'll use the first sample to count them
         features = len(dvalues[0])
 
         # If features are sparse, turn them into one-hot vector
@@ -178,19 +185,37 @@ class Activation_Softmax_Loss_CategoricalCrossEntropy():
         samples = len(dvalues)
 
         # If labels are one-hot encoded, turn them into discrete values
+        # Result is a 1d vector with the index of the highest value
+        # [[1,0,0], [0,0,1], [0,1,0]] => [0,2,1]
         if len(y_true.shape) == 2:
             y_true = np.argmax(y_true, axis=1)
 
         # Copy so we can safely modify
         self.dinputs = dvalues.copy()
-        # Calculate gradient
+        # Calculate gradient, 0->len(samples) array, y_true array
         self.dinputs[range(samples), y_true] -= 1
         # Normalize gradient
         self.dinputs = self.dinputs / samples
 
 
+# Stochastic Gradient Descent, adjusts layer weights and biases by multiplying parameter gradients
+# by the negated learning rate (default initialization is 1.0)
+class Optimizer_SGD:
+    
+    # Initialize optimizer - set settings
+    # learning rate of 1. is default for this optimizer
+    def __init__(self, learning_rate=1.0):
+        self.learning_rate = learning_rate
+
+    # Update parameters
+    def update_params(self, layer):
+        layer.weights += -self.learning_rate * layer.dweights
+        layer.biases += -self.learning_rate * layer.dbiases
+
+
+
 # Create dataset
-X, y = spiral_data(100, 3)
+X, y = spiral_data(samples=100, classes=3)
 '''plt.scatter(X[:, 0], X[:, 1])
 plt.show()'''
 
@@ -198,8 +223,10 @@ plt.show()'''
 # contains multiple stages of making a neural network from complex to simple
 # Just choose one to run
 def main():
-    # neural_network_backpropagation()
-    forward_and_backward_pass_of_one_neuron()
+    single_hidden_layer_densely_connected_nn(X, y)
+    # two_dense_two_active_with_backpropagation(X, y)
+    # test_combined_softmax_loss_backward_method_vs_individual() # combined is faster and now the default
+    # forward_and_backward_pass_of_one_neuron()
     # calculate_relu_gradient()
     # calculate_gradient_with_respect_to_bias()
     # calculate_gradient_with_respect_to_weight()
@@ -214,8 +241,156 @@ def main():
     # one_dense_classless()
 
 
-def neural_network_backpropagation():
-    pass
+
+def single_hidden_layer_densely_connected_nn(X, y):
+    # Uses the dataset in global
+    # X, y = spiral_data(samples=100, classes=3)
+
+    # Create Dense layer with 2 input features and 64 output values
+    dense1 = Layer_Dense(2, 64)
+
+    # Create ReLU activation (used with Dense layer)
+    activation1 = Activation_ReLU()
+
+    # Create second Dense layer with 64 input features.
+    # Takes output of previous layer and outputs 3 values
+    dense2 = Layer_Dense(64, 3)
+
+    # Craete Softmax classifier's combined loss and activation
+    loss_activation = Activation_Softmax_Loss_CategoricalCrossEntropy()
+
+    # Create optimizer
+    optimizer = Optimizer_SGD()
+
+    # Train in loop
+    for epoch in range(10001):
+
+        # Forward pass sample data
+        dense1.forward(X)
+        activation1.forward(dense1.output)
+        dense2.forward(activation1.output)
+        loss = loss_activation.forward(dense2.output, y)
+
+        # Print loss
+        # print('loss: ', loss)
+
+        # Calculate accuracy
+        predictions = np.argmax(loss_activation.output, axis=1)
+        if len(y.shape) == 2:
+            y = np.argmax(predictions==y)
+        accuracy = np.mean(predictions==y)
+
+        # print('acc: ', accuracy)
+
+        if not epoch % 100:
+            print(f'epoch: {epoch}, ' + 
+                  f'acc: {accuracy:.3f}, ' +
+                  f'loss: {loss:.3f}')
+
+        # Backward pass
+        loss_activation.backward(loss_activation.output, y)
+        dense2.backward(loss_activation.dinputs)
+        activation1.backward(dense2.dinputs)
+        dense1.backward(activation1.dinputs)
+
+        # Update weights and biases
+        optimizer.update_params(dense1)
+        optimizer.update_params(dense2)
+
+
+
+# Single forward and backward pass of neural network with 1 hidden layer.
+# Uses combined softmax/cross entropy calculation for forward/backward pass
+def two_dense_two_active_with_backpropagation(X, y):
+    # Uses the dataset in global
+    # since y has a change of being reassigned: y = np.argmax(y, axis=1), 
+    # this function wants explicit declaration of local variable, 
+    # thus a parameter is used instead
+
+    # Create Dense layer with 2 input features and 3 output values
+    dense1 = Layer_Dense(2,3)
+
+    # Create ReLU activation (use with Dense Layer)
+    activation1 = Activation_ReLU()
+
+    # Create second Dense layer with 3 input features and 3 output values
+    # IN: last layer output OUT: 3 output values
+    dense2 = Layer_Dense(3,3)
+
+    # Create Softmax classifier's combined loss and activation
+    loss_activation = Activation_Softmax_Loss_CategoricalCrossEntropy()
+
+    # Perform a forward pass of our training data through first dense
+    dense1.forward(X)
+
+    # Perform a forward pass through activation function
+    # takes the first output of first dense layer
+    activation1.forward(dense1.output)
+
+    # Perform a forward pass through second Dense layer
+    # takes output of the first activation function
+    dense2.forward(activation1.output)
+
+    # Perform a forward pass through the activation/loss function
+    # takes the output of second dense layer and returns loss
+    loss = loss_activation.forward(dense2.output, y)
+
+    # Let's see output of the first few samples:
+    print('first 5 samples:\n', loss_activation.output[:5])
+
+    # Print loss value
+    print('loss:', loss)
+
+    # Calculate accuracy from output of activation2 and targets
+    # calculate values along first axis
+    predictions = np.argmax(loss_activation.output, axis=1)
+    if len(y.shape) == 2:
+        y = np.argmax(y, axis=1)
+    accuracy = np.mean(predictions==y)
+
+    # Print accuracy
+    print('acc:', accuracy)
+
+    # Backward pass
+    loss_activation.backward(loss_activation.output, y)
+    dense2.backward(loss_activation.dinputs)
+    activation1.backward(dense2.dinputs)
+    dense1.backward(activation1.dinputs)
+
+    print('dense1.dweights:\n', dense1.dweights)
+    print('dense1.dbiases:\n', dense1.dbiases)
+    print('dense2.dweights:\n', dense2.dweights)
+    print('dense2.dbiases:\n', dense2.dbiases)
+
+
+# A test to show that the new combined method which was simplified
+# with calculus results in the same answer (testing shows 7x faster)
+def test_combined_softmax_loss_backward_method_vs_individual():
+    # example softmax output (probability for each output)
+    softmax_outputs = np.array([[0.7, 0.1, 0.2],
+                                [0.1, 0.5, 0.4],
+                                [0.02, 0.9, 0.08]])
+    
+    class_targets = np.array([0, 1, 1])
+
+    # Calculate using the combined method
+    softmax_loss = Activation_Softmax_Loss_CategoricalCrossEntropy()
+    softmax_loss.backward(softmax_outputs, class_targets)
+    dvalues1 = softmax_loss.dinputs
+
+    # Calculating them separately
+    activation = Activation_Softmax()
+    activation.output = softmax_outputs
+    loss = Loss_CategoricalCrossEntropy()
+    loss.backward(softmax_outputs, class_targets)
+    activation.backward(loss.dinputs)
+    dvalues2 = activation.dinputs
+
+    print('Gradients: combined loss and activation:')
+    print(dvalues1)
+    print('Gradients: separate loss and activation:')
+    print(dvalues2)
+
 
 def forward_and_backward_pass_of_one_neuron():
     # Passed in gradient from the next layer
@@ -261,7 +436,7 @@ def forward_and_backward_pass_of_one_neuron():
     # since this by default will produce a plain list
     dbiases = np.sum(drelu, axis=0, keepdims=True)
 
-    # Update parameters
+    # Update parameters (first look on SGD-Stochastic Gradient Descent)
     weights += -0.001 * dweights
     biases += -0.001 * dbiases
 
@@ -480,7 +655,8 @@ def simple_one_neuron_with_backpropagation():
 # below is the beginning of a neural network up till the end of the forward pass
 
 # runs a simple neural network with an easy dataset (vertical data)
-# to show why random weights/biases don't work well, use spiral data
+# to show why random weights/biases don't work well, comment out
+# vertical data to use spiral data
 def neural_network_random_weights_and_biases():
     # Comment the vertical data below to use spiral data
     # X, y = vertical_data(100, 3)
